@@ -19,6 +19,10 @@ app.use(helmet());
 
 app.use(bookmarksRoute);
 
+app.post('/articles', (req, res, next) => {
+  res.status(201).send('stuff');
+});
+
 // placeholder response for / location
 app.get('/', (req,res) => {
   res.send('Hello, world!');
