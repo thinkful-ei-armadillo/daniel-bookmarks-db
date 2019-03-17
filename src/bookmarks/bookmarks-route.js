@@ -1,3 +1,4 @@
+/* eslint-disable quotes */
 'use strict';
 const express = require('express');
 const uuid = require('uuid/v4');
@@ -5,6 +6,7 @@ const { isWebUri } = require('valid-url');
 const xss = require('xss');
 const store = require('../store');
 const BookmarksService = require('./bookmarks-service');
+const { getBookmarkValidationError } = require('./bookmark-validator');
 
 const bookmarksRoute = express.Router();
 const parser = express.json();
@@ -59,7 +61,7 @@ bookmarksRoute
       .then(bookmark => {
         res
           .status(201)
-          .location(`http://localhost:8001/bookmarks/${bookmark.id}`)
+          .location(`${process.env.DB_URL}/${bookmark.id}`)
           .json(serializeBookmark(bookmark));
       })
       .catch(next);
@@ -84,6 +86,33 @@ bookmarksRoute
     const { bookmark_id } = req.params;
 
     BookmarksService.deleteBookmark(req.app.get('db'), bookmark_id)
+      .then(num => {
+        res.status(204).end();
+      })
+      .catch(next);
+  })
+  .patch(parser, (req, res, next) => {
+    const { title, url, description, rating } = req.body;
+    const bookmarkToUpdate = { title, url, description, rating };
+
+    const numberOfValues = Object.values(bookmarkToUpdate).filter(Boolean).length;
+    if (numberOfValues === 0) {
+      return res.status(400).json({
+        error: {
+          message: `Request body must content either 'title', 'url', 'description' or 'rating'`
+        }
+      });
+    }
+
+    const error = getBookmarkValidationError(bookmarkToUpdate);
+
+    if (error) return res.status(400).send(error);
+
+    BookmarksService.updateBookmark(
+      req.app.get('db'),
+      req.params.bookmark_id,
+      bookmarkToUpdate
+    )
       .then(num => {
         res.status(204).end();
       })
